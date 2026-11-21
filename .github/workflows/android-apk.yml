@@ -1,0 +1,43 @@
+name: Build SENTINEL AI Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK dependencies
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Install Godot 4.3 and matching export templates
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          unzip -q Godot_v4.3-stable_linux.x86_64.zip
+          chmod +x Godot_v4.3-stable_linux.x86_64
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
+          unzip -q Godot_v4.3-stable_export_templates.tpz -d /tmp/sentinel-templates
+          cp /tmp/sentinel-templates/templates/* "$HOME/.local/share/godot/export_templates/4.3.stable/"
+      - name: Create debug signing key
+        run: |
+          mkdir -p "$HOME/.android" build
+          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US'
+      - name: Import project and build APK
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        run: |
+          ./Godot_v4.3-stable_linux.x86_64 --headless --editor --path . --quit
+          ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug Android build/SENTINEL_AI_debug.apk
+          test -s build/SENTINEL_AI_debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SENTINEL_AI_Android_Debug
+          path: build/SENTINEL_AI_debug.apk
