@@ -12,10 +12,24 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install Android SDK dependencies
+      - name: Install Android SDK command-line tools and dependencies
+        shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+          set -euo pipefail
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl -fL --retry 3 -o /tmp/android-cmdline-tools.zip \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          mkdir -p /tmp/android-cmdline-tools
+          unzip -q /tmp/android-cmdline-tools.zip -d /tmp/android-cmdline-tools
+          rm -rf "$ANDROID_HOME/cmdline-tools/latest"
+          mv /tmp/android-cmdline-tools/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses >/dev/null || test "${PIPESTATUS[1]}" -eq 0
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" \
+            'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
       - name: Install Godot 4.3 and matching export templates
         run: |
           wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
