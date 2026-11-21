@@ -47,6 +47,35 @@ jobs:
       - name: Import project and build APK
         run: |
           ./Godot_v4.3-stable_linux.x86_64 --headless --editor --path . --quit
+          python3 - <<'PYCONFIG'
+          from pathlib import Path
+          import os
+          config = Path.home() / '.config/godot/editor_settings-4.3.tres'
+          if not config.exists():
+              raise SystemExit(f'Godot editor settings not found: {config}')
+          sdk = os.environ.get('ANDROID_HOME', '/usr/local/lib/android/sdk')
+          java = os.environ.get('JAVA_HOME', '')
+          if not java:
+              raise SystemExit('JAVA_HOME is not set')
+          entries = {
+              'export/android/android_sdk_path': sdk,
+              'export/android/java_sdk_path': java,
+              'export/android/debug_keystore': str(Path.home() / '.android/debug.keystore'),
+              'export/android/debug_keystore_user': 'androiddebugkey',
+              'export/android/debug_keystore_pass': 'android',
+          }
+          contents = config.read_text()
+          for key, value in entries.items():
+              import re
+              line = f'{key} = "{value}"'
+              pattern = rf'(?m)^{re.escape(key)}\s*=.*$'
+              if re.search(pattern, contents):
+                  contents = re.sub(pattern, lambda _: line, contents)
+              else:
+                  contents += '\n' + line
+          config.write_text(contents)
+          print('Godot Android SDK and Java paths configured')
+          PYCONFIG
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug Android build/SENTINEL_AI_debug.apk
           test -s build/SENTINEL_AI_debug.apk
       - uses: actions/upload-artifact@v4
