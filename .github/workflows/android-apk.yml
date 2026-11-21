@@ -12,7 +12,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - name: Install Android SDK dependencies
         run: |
           yes | sdkmanager --licenses >/dev/null || true
@@ -24,6 +23,7 @@ jobs:
           chmod +x Godot_v4.3-stable_linux.x86_64
           wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
           mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
+          mkdir -p /tmp/sentinel-templates
           unzip -q Godot_v4.3-stable_export_templates.tpz -d /tmp/sentinel-templates
           cp /tmp/sentinel-templates/templates/* "$HOME/.local/share/godot/export_templates/4.3.stable/"
       - name: Create debug signing key
@@ -31,8 +31,6 @@ jobs:
           mkdir -p "$HOME/.android" build
           keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US'
       - name: Import project and build APK
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
         run: |
           ./Godot_v4.3-stable_linux.x86_64 --headless --editor --path . --quit
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug Android build/SENTINEL_AI_debug.apk
